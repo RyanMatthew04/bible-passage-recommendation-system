@@ -1,0 +1,11 @@
+Django==4.2.25
+faiss-cpu==1.10.0
+huggingface-hub==0.36.0
+numpy==1.26.4
+pandas==2.2.3
+requests==2.32.3
+selenium==4.35.0
+sentence-transformers==3.4.1
+torch==2.6.0+cu118
+transformers==4.57.1
+

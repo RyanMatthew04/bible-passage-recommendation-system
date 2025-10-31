@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scripture Discovery - Semantic Search</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 50%, #7e22ce 100%);
+            min-height: 100vh;
+            padding: 40px 20px;
+            position: relative;
+            overflow-x: hidden;
+        }
+        
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(circle at 20% 50%, rgba(120, 119, 198, 0.3), transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(138, 43, 226, 0.3), transparent 50%);
+            pointer-events: none;
+            z-index: 0;
+        }
+        
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 50px;
+            animation: fadeInDown 0.8s ease-out;
+        }
+        
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        h1 {
+            color: white;
+            font-size: 3em;
+            font-weight: 700;
+            margin-bottom: 15px;
+            letter-spacing: -1px;
+            text-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+        
+        .subtitle {
+            color: rgba(255, 255, 255, 0.85);
+            font-size: 1.1em;
+            font-weight: 400;
+            letter-spacing: 0.5px;
+        }
+        
+        .search-container {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 
+                0 20px 60px rgba(0,0,0,0.3),
+                0 0 0 1px rgba(255,255,255,0.1) inset;
+            margin-bottom: 40px;
+            animation: fadeInUp 0.8s ease-out 0.2s both;
+        }
+        
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .input-wrapper {
+            position: relative;
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+        
+        #query-input {
+            flex: 1;
+            padding: 18px 24px;
+            border: 2px solid transparent;
+            border-radius: 14px;
+            font-size: 16px;
+            background: #f8f9fa;
+            transition: all 0.3s ease;
+            outline: none;
+        }
+        
+        #query-input:focus {
+            background: white;
+            border-color: #7e22ce;
+            box-shadow: 0 0 0 4px rgba(126, 34, 206, 0.1);
+        }
+        
+        #query-input::placeholder {
+            color: #9ca3af;
+        }
+        
+        #search-btn {
+            padding: 18px 36px;
+            background: linear-gradient(135deg, #7e22ce 0%, #5b21b6 100%);
+            color: white;
+            border: none;
+            border-radius: 14px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(126, 34, 206, 0.3);
+            white-space: nowrap;
+        }
+        
+        #search-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 25px rgba(126, 34, 206, 0.4);
+            background: linear-gradient(135deg, #8b2dd6 0%, #6d28d9 100%);
+        }
+        
+        #search-btn:active:not(:disabled) {
+            transform: translateY(0);
+        }
+        
+        #search-btn:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+            box-shadow: none;
+            transform: none;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 60px 30px;
+            display: none;
+            animation: fadeIn 0.5s ease-out;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        .spinner {
+            width: 50px;
+            height: 50px;
+            margin: 0 auto 20px;
+            border: 4px solid rgba(255,255,255,0.2);
+            border-top: 4px solid white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .loading-text {
+            color: white;
+            font-size: 18px;
+            font-weight: 500;
+        }
+        
+        .results-container {
+            display: none;
+        }
+        
+        .chapter-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: 16px;
+            padding: 30px;
+            margin-bottom: 24px;
+            box-shadow: 
+                0 10px 40px rgba(0,0,0,0.15),
+                0 0 0 1px rgba(255,255,255,0.1) inset;
+            transition: all 0.3s ease;
+            animation: slideInUp 0.5s ease-out both;
+        }
+        
+        .chapter-card:nth-child(1) { animation-delay: 0.1s; }
+        .chapter-card:nth-child(2) { animation-delay: 0.15s; }
+        .chapter-card:nth-child(3) { animation-delay: 0.2s; }
+        .chapter-card:nth-child(4) { animation-delay: 0.25s; }
+        .chapter-card:nth-child(5) { animation-delay: 0.3s; }
+        
+        @keyframes slideInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .chapter-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 
+                0 20px 50px rgba(0,0,0,0.2),
+                0 0 0 1px rgba(255,255,255,0.1) inset;
+        }
+        
+        .chapter-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #f1f5f9;
+        }
+        
+        .chapter-title {
+            font-size: 1.6em;
+            color: #1e293b;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+        
+        .similarity-badge {
+            background: linear-gradient(135deg, #7e22ce 0%, #5b21b6 100%);
+            color: white;
+            padding: 8px 18px;
+            border-radius: 12px;
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: 0.3px;
+            box-shadow: 0 4px 12px rgba(126, 34, 206, 0.3);
+        }
+        
+        .chapter-text {
+            line-height: 1.9;
+            font-size: 16px;
+            color: #334155;
+            text-align: justify;
+        }
+        
+        .verse {
+            display: inline;
+            padding: 2px 1px;
+            border-radius: 4px;
+            transition: all 0.3s ease;
+        }
+        
+        .verse-number {
+            font-weight: 700;
+            color: #7e22ce;
+            font-size: 0.85em;
+            margin-right: 2px;
+        }
+        
+        .verse:hover {
+            background-color: rgba(126, 34, 206, 0.1) !important;
+        }
+        
+        .error-message {
+            background: rgba(239, 68, 68, 0.95);
+            backdrop-filter: blur(20px);
+            color: white;
+            padding: 24px;
+            border-radius: 16px;
+            text-align: center;
+            margin-top: 20px;
+            box-shadow: 0 10px 40px rgba(239, 68, 68, 0.3);
+            animation: shake 0.5s ease-out;
+        }
+        
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-10px); }
+            75% { transform: translateX(10px); }
+        }
+        
+        .no-results {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            padding: 60px 40px;
+            border-radius: 16px;
+            text-align: center;
+            color: #64748b;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+        }
+        
+        .no-results h2 {
+            color: #334155;
+            margin-bottom: 12px;
+            font-size: 1.8em;
+        }
+        
+        .no-results p {
+            font-size: 16px;
+        }
+        
+        @media (max-width: 768px) {
+            body {
+                padding: 20px 15px;
+            }
+            
+            h1 {
+                font-size: 2em;
+            }
+            
+            .subtitle {
+                font-size: 0.95em;
+            }
+            
+            .search-container {
+                padding: 20px;
+            }
+            
+            .input-wrapper {
+                flex-direction: column;
+            }
+            
+            #search-btn {
+                width: 100%;
+            }
+            
+            .chapter-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 12px;
+            }
+            
+            .chapter-text {
+                font-size: 15px;
+            }
+            
+            .chapter-card {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📖 Scripture Discovery</h1>
+            <p class="subtitle">Find relevant passages with AI-powered semantic search</p>
+        </div>
+        
+        <div class="search-container">
+            <div class="input-wrapper">
+                <input 
+                    type="text" 
+                    id="query-input" 
+                    placeholder="Ask a question or describe what you're looking for..."
+                    autocomplete="off"
+                >
+                <button id="search-btn">Search</button>
+            </div>
+        </div>
+        
+        <div id="loading" class="loading">
+            <div class="spinner"></div>
+            <p class="loading-text">Searching scriptures...</p>
+        </div>
+        
+        <div id="results" class="results-container"></div>
+    </div>
+    
+    <script>
+        const queryInput = document.getElementById('query-input');
+        const searchBtn = document.getElementById('search-btn');
+        const loading = document.getElementById('loading');
+        const resultsContainer = document.getElementById('results');
+        
+        searchBtn.addEventListener('click', performSearch);
+        
+        queryInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                performSearch();
+            }
+        });
+        
+        async function performSearch() {
+            const query = queryInput.value.trim();
+            
+            if (!query) {
+                alert('Please enter a question');
+                return;
+            }
+            
+            searchBtn.disabled = true;
+            loading.style.display = 'block';
+            resultsContainer.style.display = 'none';
+            resultsContainer.innerHTML = '';
+            
+            try {
+                const response = await fetch('/api/search/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ query: query })
+                });
+                
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(data.error || 'Search failed');
+                }
+                
+                displayResults(data);
+                
+            } catch (error) {
+                console.error('Error:', error);
+                resultsContainer.innerHTML = `
+                    <div class="error-message">
+                        <strong>Error:</strong> ${error.message}
+                    </div>
+                `;
+                resultsContainer.style.display = 'block';
+            } finally {
+                loading.style.display = 'none';
+                searchBtn.disabled = false;
+            }
+        }
+        
+        function getHighlightColor(score, minScore, maxScore) {
+            const normalized = (score - minScore) / (maxScore - minScore);
+            const alpha = 0.2 + (normalized * 0.6);
+            return `rgba(255, 223, 0, ${alpha})`;
+        }
+        
+        function displayResults(data) {
+            if (!data.results || data.results.length === 0) {
+                resultsContainer.innerHTML = `
+                    <div class="no-results">
+                        <h2>No Results Found</h2>
+                        <p>Try rephrasing your query or using different keywords.</p>
+                    </div>
+                `;
+                resultsContainer.style.display = 'block';
+                return;
+            }
+            
+            // Sort results by similarity in descending order
+            const sortedResults = [...data.results].sort((a, b) => b.similarity - a.similarity);
+            
+            let html = '';
+            
+            sortedResults.forEach((result) => {
+                const similarityPercent = (result.similarity * 100).toFixed(1);
+                
+                const highlightedVerses = result.verses.filter(v => v.is_highlighted);
+                const highlightScores = highlightedVerses.map(v => v.highlight_score);
+                const minScore = highlightScores.length > 0 ? Math.min(...highlightScores) : 0;
+                const maxScore = highlightScores.length > 0 ? Math.max(...highlightScores) : 1;
+                
+                html += `
+                    <div class="chapter-card">
+                        <div class="chapter-header">
+                            <div class="chapter-title">
+                                ${result.chapter_id}
+                            </div>
+                            <div class="similarity-badge">
+                                ${similarityPercent}%
+                            </div>
+                        </div>
+                        <div class="chapter-text">
+                `;
+                
+                const sortedVerses = [...result.verses].sort((a, b) => a.verse - b.verse);
+                
+                sortedVerses.forEach((verse, index) => {
+                    let verseHtml = '';
+                    
+                    if (verse.is_highlighted) {
+                        const bgColor = getHighlightColor(verse.highlight_score, minScore, maxScore);
+                        verseHtml = `<span class="verse" style="background-color: ${bgColor};" title="Relevance: ${(verse.highlight_score * 100).toFixed(1)}%">
+                            <sup class="verse-number">${verse.verse}</sup>${escapeHtml(verse.text)}
+                        </span>`;
+                    } else {
+                        verseHtml = `<span class="verse">
+                            <sup class="verse-number">${verse.verse}</sup>${escapeHtml(verse.text)}
+                        </span>`;
+                    }
+                    
+                    html += verseHtml;
+                    
+                    if (index < sortedVerses.length - 1) {
+                        html += ' ';
+                    }
+                });
+                
+                html += `
+                        </div>
+                    </div>
+                `;
+            });
+            
+            resultsContainer.innerHTML = html;
+            resultsContainer.style.display = 'block';
+            
+            resultsContainer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    </script>
+</body>
+</html>
